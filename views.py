@@ -24,15 +24,37 @@ def login():
                 'content-type': 'application/json',
                 'Authorization': 'Bearer' + token
             }
-            BASE_URL = 'Add the base url here'
-            REQ_URL = BASE_URL + '/v1/generate'
+            BASE_URL = 'https://bam-api.res.ibm.com'
+            REQ_URL = BASE_URL + '/v2/text/generation?version=2024-04-15'
             payload_f_json = {
-                "model_id": "bigcode/starcoder",
-                "template": {
-                "id": "prompt_builder",
+                "model_id": "ibm/granite-20b-code-instruct-v1",
+                "parameters": {
+                    "decoding_method": "greedy",
+                    "stop_sequences": [
+                    "\n"
+                    ],
+                    "include_stop_sequence": False,
+                    "min_new_tokens": 1,
+                    "max_new_tokens": 4096
+                },
+                "moderations": {
+                    "hap": {
+                    "input": {
+                        "enabled": True,
+                        "threshold": 0.75
+                    },
+                    "output": {
+                        "enabled": True,
+                        "threshold": 0.75
+                    }
+                    }
+                },
+                "prompt_id": "prompt_builder",
                 "data": {
+                    "input": "",
                     "instruction": "Extract PII entities from the text given",
-                    "output_prefix": "SQL:",
+                    "input_prefix": "Input:",
+                    "output_prefix": "Output:",
                     "examples": [
                         {
                             "input": "Select all events",
@@ -70,32 +92,22 @@ def login():
                             "input": "Select sourceip and protocol name from events",
                             "output": "SELECT sourceip, PROTOCOLNAME(protocolid) FROM events"
                         }
-                    ]
+                    ],
+                    "system_prompt": "You are Granite Chat, an AI language model developed by IBM. You are a cautious assistant that carefully follows instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior. You respond in a comprehensive manner unless instructed otherwise, providing explanations when needed while maintaining a neutral tone. You are capable of coding, writing, and roleplaying. You are cautious and refrain from generating real-time information, highly subjective or opinion-based topics. You are harmless and refrain from generating content involving any form of bias, violence, discrimination or inappropriate content. You always respond to greetings (for example, hi, hello, g'\''day, morning, afternoon, evening, night, what'\''s up, nice to meet you, sup, etc) with \"Hello! I am Granite Chat, created by IBM. How can I help you today?\". Please do not say anything else and do not start a conversation."
                 }
-                },
-                "parameters": {
-                "decoding_method": "greedy",
-                "stop_sequences": [
-                    "\n\n"
-                ],
-                "min_new_tokens": 1,
-                "max_new_tokens": 1536,
-                "beam_width": 1
-                },
-                "inputs": []
             }
-            # Above provided examples are sample prompts. Anyone trying to generate AQL for complex scenarios need to further train the model with more specific examples.
-            payload_f_json['inputs'] = [text]
+            # payload_f_json['inputs'] = [text]
+            payload_f_json["data"]['input'] = [text]
             response_llm = requests.post(REQ_URL, headers=HEADERS, data=json.dumps(payload_f_json))
             response_llm_json = response_llm.json()
-            answer = response_llm_json['results'][0]['generated_text']
-            # return parse_output(answer, type)
+            answer = response_llm_json['error']
             return render_template('index.html', name=text, ans=answer)
         else:
             user = request.args.get('nm')
             return render_template('index.html')
     else:
         user = request.args.get('nm')
+        print('user', user)
         return render_template('index.html')
 
 
