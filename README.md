@@ -34,4 +34,4 @@ Note: “Replace <QRadar_server> with the IP or hostname of your QRadar console 
 ---> Route To run on QRadar ---> @viewsbp.route('/index', methods=['GET', 'POST']) # for QRadar
 
 ---> Route To run on Docker locally  ---> @viewsbp.route('/', methods=['GET', 'POST']) # for Local system
->>>>>>> ba909b6 (Added AQLCodegen App)
+
