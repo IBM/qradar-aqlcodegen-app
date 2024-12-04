@@ -6,28 +6,64 @@
 
 from flask import Flask, Blueprint, render_template, current_app, send_from_directory, redirect, url_for, request
 from qpylib import qpylib
+from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 import json
 import requests
 
 # pylint: disable=invalid-name
 viewsbp = Blueprint('viewsbp', __name__, url_prefix='/')
 
+
+
 @viewsbp.route('/index', methods=['POST', 'GET'])
-def login():
+def execute():
     if request.method == 'POST':
         aql_stm = request.form['nm']
         text = aql_stm.strip()
-        token = 'Add the token here'
+        token = 'Add token here'
+        authenticator = IAMAuthenticator(token)
+        access_token = authenticator.token_manager.get_token()
+
         if len(text) > 1:
             HEADERS = {
                 'accept': 'application/json',
                 'content-type': 'application/json',
-                'Authorization': 'Bearer' + token
+                'Authorization': 'Bearer {}'.format(access_token)
             }
-            BASE_URL = 'https://bam-api.res.ibm.com'
-            REQ_URL = BASE_URL + '/v2/text/generation?version=2024-04-15'
+            
+            BASE_URL = 'Add Base Url here'
+            REQ_URL = BASE_URL + '/ml/v1/text/generation?version=2023-05-29'
             payload_f_json = {
-                "model_id": "ibm/granite-20b-code-instruct-v1",
+        
+                "input": """Convert the natural language statement into Ariel Query Language
+
+                    Input: Select all events
+                    Output: SELECT * from events
+
+                    Input: Select all events group by source ip
+                    Output: SELECT * from events Group By sourceIp
+
+                    Input: Give count of all events
+                    Output: SELECT COUNT(*) from events
+
+                    Input: Search username, unique count of source ip from events group by source ip
+                    Output: SELECT username, UNIQUECOUNT(sourceip) FROM events GROUP BY sourceip
+                    
+                    Input: Search username, source ip and domain name from domain id from events
+                    Output: SELECT sourceip, username, DOMAINNAME(domainid) FROM events
+
+                    Input: Search source ip, destination ip and geo distance from events in last 10 minutes
+                    Output: SELECT sourceip, destinationip, GEO::DISTANCE(sourceip, destinationip) FROM events LAST 10 minutes
+
+                    Input: Search all the events from 1 hour ago till now group by source ip
+                    Output: SELECT * from events Group By sourceip START PARSEDATETIME('1 hour ago') STOP PARSEDATETIME('now')
+                    
+                    Input: Select sourceip and protocol name from events
+                    Output: SELECT sourceip, PROTOCOLNAME(protocolid) FROM events""",
+                    
+
+                "model_id": "ibm/granite-20b-code-instruct",
+                "project_id": "Add ProjectId here",
                 "parameters": {
                     "decoding_method": "greedy",
                     "stop_sequences": [
@@ -50,64 +86,18 @@ def login():
                     }
                 },
                 "prompt_id": "prompt_builder",
-                "data": {
-                    "input": "",
-                    "instruction": "Extract PII entities from the text given",
-                    "input_prefix": "Input:",
-                    "output_prefix": "Output:",
-                    "examples": [
-                        {
-                            "input": "Select all events",
-                            "output": "SELECT * from events"
-                        },
-                        {
-                            "input": "Select all events group by source ip",
-                            "output": "SELECT * from events Group By sourceIp "
-                        },
-                        {
-                            "input": "Give count of all events",
-                            "output": "SELECT COUNT(*) from events"
-                        },
-                        {
-                            "input": "Search username, unique count of source ip from events group by source ip",
-                            "output": "SELECT username, UNIQUECOUNT(sourceip) FROM events GROUP BY sourceip"
-                        },
-                        {
-                            "input": "Search username, source ip and domain name from domain id from events",
-                            "output": "SELECT sourceip, username, DOMAINNAME(domainid) FROM events"
-                        },
-                        {
-                            "input": "Search source ip, destination ip and geo distance from events in last 10 minutes",
-                            "output": "SELECT sourceip, destinationip, GEO::DISTANCE(sourceip, destinationip) FROM events LAST 10 minutes"
-                        },
-                        {
-                            "input": " Search source ip, destination ip and geo distance from events from yesterday 10am to today 11am",
-                            "output": "SELECT * FROM EVENTS START '2023-10-17 10:00' STOP '2023-10-18 11:00'"
-                        },
-                        {
-                            "input": "Search all the events from 1 hour ago till now group by source ip",
-                            "output": "SELECT * from events Group By sourceip START PARSEDATETIME('1 hour ago') STOP PARSEDATETIME('now')"
-                        },
-                        {
-                            "input": "Select sourceip and protocol name from events",
-                            "output": "SELECT sourceip, PROTOCOLNAME(protocolid) FROM events"
-                        }
-                    ],
-                    "system_prompt": "You are Granite Chat, an AI language model developed by IBM. You are a cautious assistant that carefully follows instructions. You are helpful and harmless and you follow ethical guidelines and promote positive behavior. You respond in a comprehensive manner unless instructed otherwise, providing explanations when needed while maintaining a neutral tone. You are capable of coding, writing, and roleplaying. You are cautious and refrain from generating real-time information, highly subjective or opinion-based topics. You are harmless and refrain from generating content involving any form of bias, violence, discrimination or inappropriate content. You always respond to greetings (for example, hi, hello, g'\''day, morning, afternoon, evening, night, what'\''s up, nice to meet you, sup, etc) with \"Hello! I am Granite Chat, created by IBM. How can I help you today?\". Please do not say anything else and do not start a conversation."
-                }
             }
             # payload_f_json['inputs'] = [text]
-            payload_f_json["data"]['input'] = [text]
+            payload_f_json['input'] = payload_f_json['input']+text+"\n\nOutput:\n"
             response_llm = requests.post(REQ_URL, headers=HEADERS, data=json.dumps(payload_f_json))
             response_llm_json = response_llm.json()
-            answer = response_llm_json['error']
+            answer = response_llm_json['results'][0]['generated_text']
             return render_template('index.html', name=text, ans=answer)
         else:
             user = request.args.get('nm')
             return render_template('index.html')
     else:
         user = request.args.get('nm')
-        print('user', user)
         return render_template('index.html')
 
 
